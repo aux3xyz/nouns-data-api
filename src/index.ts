@@ -32,13 +32,17 @@ app.get("/props/:propId", async (c) => {
 app.get("/props/:propId/votes", async (c) => {
   const propId = c.req.param("propId");
   const summary = c.req.query("summary") === "true";
+  const type = c.req.query("type") || "all"; // "all", "signal", or "sponsor"
   const skip = c.req.query("skip");
+
   if (summary) {
     return c.text(
-      `Summary of all votes for Proposal #${propId}, skip: ${skip}`,
+      `Summary of all ${type} votes for Proposal #${propId}, skip: ${skip}`,
     );
   }
-  return c.text(`List of all votes for Proposal #${propId}, skip: ${skip}`);
+  return c.text(
+    `List of all ${type} votes for Proposal #${propId}, skip: ${skip}`,
+  );
 });
 
 // Route for retrieving a specific vote by ID for a specific prop
@@ -83,6 +87,43 @@ app.get("/propdates/:propdateId", async (c) => {
     return c.text(`Summary of propdate #${propdateId}`);
   }
   return c.text(`Details of propdate #${propdateId}`);
+});
+
+// Route for retrieving all candidates
+app.get("/candidates", async (c) => {
+  const summary = c.req.query("summary") === "true";
+  const skip = c.req.query("skip");
+  if (summary) {
+    return c.text(`Summary of all candidates, skip: ${skip}`);
+  }
+  return c.text(`List of all candidates, skip: ${skip}`);
+});
+
+// Route for retrieving a single candidate by slug
+app.get("/candidates/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const summary = c.req.query("summary") === "true";
+  if (summary) {
+    return c.text(`Summary of Candidate with slug #${slug}`);
+  }
+  return c.text(`Details of Candidate with slug #${slug}`);
+});
+
+// Route for retrieving all votes for a specific candidate
+app.get("/candidates/:slug/votes", async (c) => {
+  const slug = c.req.param("slug");
+  const summary = c.req.query("summary") === "true";
+  const type = c.req.query("type") || "all"; // "all", "signal", or "sponsor"
+  const skip = c.req.query("skip");
+
+  if (summary) {
+    return c.text(
+      `Summary of all ${type} votes for Candidate #${slug}, skip: ${skip}`,
+    );
+  }
+  return c.text(
+    `List of all ${type} votes for Candidate #${slug}, skip: ${skip}`,
+  );
 });
 
 export default app;
