@@ -1,9 +1,30 @@
 import { Hono } from "hono";
+import { Db, MongoClient } from "mongodb";
 
 const app = new Hono();
+const uri = process.env.MONGODB_URI || "";
+const client = new MongoClient(uri);
+
+// Middleware to establish and manage MongoDB connection
+app.use("*", async (c, next) => {
+  try {
+    if (!client?.topology || !client?.topology.isConnected()) {
+      await client.connect();
+      console.log("Connected to MongoDB");
+    }
+    const db = client.db("noun");
+    c.set("db" as never, db);
+  } catch (error) {
+    console.error("Failed to connect to MongoDB:", error);
+    return c.text("Database connection error", 500);
+  }
+  await next();
+});
 
 // Route for retrieving all nouns
 app.get("/nouns", async (c) => {
+  const db = c.get("db" as never) as Db;
+  console.log(await db.collection("ProposalCreated").findOne());
   return c.text("List of all Nouns NFTs");
 });
 
