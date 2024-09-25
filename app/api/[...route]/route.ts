@@ -69,6 +69,7 @@ app.get("/props", async (c) => {
         },
       },
     )
+    .sort({ id: -1 })
     .skip(skip)
     .limit(limit)
     .toArray();
