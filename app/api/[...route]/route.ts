@@ -1,18 +1,18 @@
 import { Hono } from "hono";
+import { handle } from "hono/vercel";
 import { Db, MongoClient } from "mongodb";
 
-const app = new Hono();
+const app = new Hono().basePath("/api");
+
 const uri = process.env.MONGODB_URI || "";
 const client = new MongoClient(uri);
 
 // Middleware to establish and manage MongoDB connection
 app.use("*", async (c, next) => {
   try {
-    if (!client?.topology || !client?.topology.isConnected()) {
-      await client.connect();
-      console.log("Connected to MongoDB");
-    }
+    await client.connect();
     const db = client.db("noun");
+    db.command({ ping: 1 });
     c.set("db" as never, db);
   } catch (error) {
     console.error("Failed to connect to MongoDB:", error);
@@ -37,6 +37,18 @@ app.get("/nouns/:nounId", async (c) => {
 // List of all Proposals to the Nouns DAO
 app.get("/props", async (c) => {
   const db = c.get("db" as never) as Db;
+
+  // Get pagination parameters from query
+  let page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+  let limit = Math.min(parseInt(c.req.query("limit") || "10", 10), 50);
+
+  // Calculate skip value
+  const skip = (page - 1) * limit;
+
+  // Get total count
+  const totalCount = await db.collection("ProposalCreated").countDocuments();
+
+  // Get paginated data
   const props = await db
     .collection("ProposalCreated")
     .find(
@@ -57,10 +69,18 @@ app.get("/props", async (c) => {
         },
       },
     )
-
+    .skip(skip)
+    .limit(limit)
     .toArray();
+
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / limit);
+
   return c.json({
-    _count: props.length,
+    totalCount,
+    page,
+    limit,
+    totalPages,
     data: props,
   });
 });
@@ -197,4 +217,4 @@ app.get("/candidates/:slug/votes", async (c) => {
   );
 });
 
-export default app;
+export const GET = handle(app);
