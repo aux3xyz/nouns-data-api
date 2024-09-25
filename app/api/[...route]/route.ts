@@ -7,13 +7,23 @@ const app = new Hono().basePath("/api");
 const uri = process.env.MONGODB_URI || "";
 const client = new MongoClient(uri);
 
-// Middleware to establish and manage MongoDB connection
+let db: Db | null = null;
+
+// Initialize database connection
+async function connectToDatabase() {
+  if (!db) {
+    await client.connect();
+    db = client.db("noun");
+    console.log("Connected to MongoDB");
+  }
+  return db;
+}
+
+// Middleware to ensure database connection
 app.use("*", async (c, next) => {
   try {
-    await client.connect();
-    const db = client.db("noun");
-    db.command({ ping: 1 });
-    c.set("db" as never, db);
+    const database = await connectToDatabase();
+    c.set("db" as never, database);
   } catch (error) {
     console.error("Failed to connect to MongoDB:", error);
     return c.text("Database connection error", 500);
@@ -45,10 +55,6 @@ app.get("/props", async (c) => {
   // Calculate skip value
   const skip = (page - 1) * limit;
 
-  // Get total count
-  const totalCount = await db.collection("ProposalCreated").countDocuments();
-
-  // Get paginated data
   const props = await db
     .collection("ProposalCreated")
     .find(
@@ -74,16 +80,33 @@ app.get("/props", async (c) => {
     .limit(limit)
     .toArray();
 
-  // Calculate total pages
-  const totalPages = Math.ceil(totalCount / limit);
+  return c.json(props);
+});
 
-  return c.json({
-    totalCount,
-    page,
-    limit,
-    totalPages,
-    data: props,
-  });
+// Get Lastest Proposal
+app.get("props/latest", async (c) => {
+  const db = c.get("db" as never) as Db;
+  const prop = await db.collection("ProposalCreated").findOne(
+    {},
+    {
+      projection: {
+        _id: 0,
+        id: 1,
+        proposer: 1,
+        description: 1,
+        calldatas: 1,
+        targets: 1,
+        values: 1,
+        startBlock: 1,
+        endBlock: 1,
+        txHash: 1,
+        blockNumber: 1,
+      },
+      sort: { id: -1 },
+    },
+  );
+
+  return c.json(prop);
 });
 
 // Specific Proposal by propId
@@ -115,9 +138,7 @@ app.get("/props/:propId", async (c) => {
     },
   );
 
-  return c.json({
-    data: prop,
-  });
+  return c.json(prop);
 });
 
 // Route for retrieving all votes for a specific prop
