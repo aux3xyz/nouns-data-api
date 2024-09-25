@@ -34,19 +34,69 @@ app.get("/nouns/:nounId", async (c) => {
   return c.text(`Details of Noun NFT #${nounId}`);
 });
 
-// Route for retrieving all props (proposals)
+// List of all Proposals to the Nouns DAO
 app.get("/props", async (c) => {
-  return c.text("List of all Proposals to the Nouns DAO");
+  const db = c.get("db" as never) as Db;
+  const props = await db
+    .collection("ProposalCreated")
+    .find(
+      {},
+      {
+        projection: {
+          _id: 0,
+          id: 1,
+          proposer: 1,
+          description: 1,
+          calldatas: 1,
+          targets: 1,
+          values: 1,
+          startBlock: 1,
+          endBlock: 1,
+          txHash: 1,
+          blockNumber: 1,
+        },
+      },
+    )
+
+    .toArray();
+  return c.json({
+    _count: props.length,
+    data: props,
+  });
 });
 
-// Route for retrieving a single prop by ID
+// Specific Proposal by propId
 app.get("/props/:propId", async (c) => {
   const propId = c.req.param("propId");
   const summary = c.req.query("summary") === "true";
   if (summary) {
     return c.text(`Summary of Proposal #${propId}`);
   }
-  return c.text(`Details of Proposal #${propId}`);
+  const db = c.get("db" as never) as Db;
+  const prop = await db.collection("ProposalCreated").findOne(
+    {
+      id: propId,
+    },
+    {
+      projection: {
+        _id: 0,
+        id: 1,
+        proposer: 1,
+        description: 1,
+        calldatas: 1,
+        targets: 1,
+        values: 1,
+        startBlock: 1,
+        endBlock: 1,
+        txHash: 1,
+        blockNumber: 1,
+      },
+    },
+  );
+
+  return c.json({
+    data: prop,
+  });
 });
 
 // Route for retrieving all votes for a specific prop
