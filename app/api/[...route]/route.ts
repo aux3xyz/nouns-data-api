@@ -14,8 +14,9 @@ async function connectToDatabase() {
   if (!db) {
     await client.connect();
     db = client.db("noun");
-    console.log("Connected to MongoDB");
+    console.log("Connected to MongoDB, 🫡");
   }
+  console.log("Already Connected to MongoDB! hehe!!!");
   return db;
 }
 
