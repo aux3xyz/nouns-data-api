@@ -149,35 +149,66 @@ app.get("/props/:propId/votes", async (c) => {
 
 // Route for retrieving all propdates (comments) with optional filtering
 app.get("/propdates", async (c) => {
-  const propId = c.req.query("propId");
-  const skip = c.req.query("skip");
-  const summary = c.req.query("summary") === "true";
+  const db = c.get("db" as never) as Db;
 
-  if (propId) {
-    if (summary) {
-      return c.text(
-        `Summary of all propdates for Proposal #${propId}, skip: ${skip}`,
-      );
-    }
-    return c.text(
-      `List of all propdates for Proposal #${propId}, skip: ${skip}`,
-    );
-  }
+  // Get pagination parameters from query
+  let page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+  let limit = Math.min(parseInt(c.req.query("limit") || "10", 10), 50);
 
-  if (summary) {
-    return c.text(`Summary of all propdates, skip: ${skip}`);
-  }
-  return c.text(`List of all propdates, skip: ${skip}`);
+  // Calculate skip value
+  const skip = (page - 1) * limit;
+
+  const propdates = await db
+    .collection("PostUpdate")
+    .find(
+      {},
+      {
+        projection: {
+          _id: 0,
+          propId: 1,
+          txHash: 1,
+          blockNumber: 1,
+          msgSender: 1,
+          update: 1,
+          isCompleted: 1,
+        },
+        sort: { blockNumber: -1 },
+      },
+    )
+    .skip(skip)
+    .limit(limit)
+    .toArray();
+
+  return c.json(propdates);
 });
 
-// Route for retrieving a specific propdate by ID
-app.get("/propdates/:propdateId", async (c) => {
-  const propdateId = c.req.param("propdateId");
-  const summary = c.req.query("summary") === "true";
-  if (summary) {
-    return c.text(`Summary of propdate #${propdateId}`);
-  }
-  return c.text(`Details of propdate #${propdateId}`);
+// Route for retrieving a specific propdate by propId
+app.get("/propdates/:propId", async (c) => {
+  const proposalId = c.req.param("propId");
+  const db = c.get("db" as never) as Db;
+
+  const propdates = await db
+    .collection("PostUpdate")
+    .find(
+      {
+        propId: Number(proposalId),
+      },
+      {
+        projection: {
+          _id: 0,
+          propId: 1,
+          txHash: 1,
+          blockNumber: 1,
+          msgSender: 1,
+          update: 1,
+          isCompleted: 1,
+        },
+        sort: { blockNumber: -1 },
+      },
+    )
+    .toArray();
+
+  return c.json(propdates);
 });
 
 // Route for retrieving all candidates
