@@ -9,6 +9,20 @@ const client = new MongoClient(uri);
 
 let db: Db | null = null;
 
+let proposalProjection = {
+  _id: 0,
+  id: 1,
+  proposer: 1,
+  description: 1,
+  calldatas: 1,
+  targets: 1,
+  values: 1,
+  startBlock: 1,
+  endBlock: 1,
+  txHash: 1,
+  blockNumber: 1,
+};
+
 // Initialize database connection
 async function connectToDatabase() {
   if (!db) {
@@ -61,22 +75,10 @@ app.get("/props", async (c) => {
     .find(
       {},
       {
-        projection: {
-          _id: 0,
-          id: 1,
-          proposer: 1,
-          description: 1,
-          calldatas: 1,
-          targets: 1,
-          values: 1,
-          startBlock: 1,
-          endBlock: 1,
-          txHash: 1,
-          blockNumber: 1,
-        },
+        projection: proposalProjection,
+        sort: { id: -1 },
       },
     )
-    .sort({ id: -1 })
     .skip(skip)
     .limit(limit)
     .toArray();
@@ -90,19 +92,7 @@ app.get("props/latest", async (c) => {
   const prop = await db.collection("ProposalCreated").findOne(
     {},
     {
-      projection: {
-        _id: 0,
-        id: 1,
-        proposer: 1,
-        description: 1,
-        calldatas: 1,
-        targets: 1,
-        values: 1,
-        startBlock: 1,
-        endBlock: 1,
-        txHash: 1,
-        blockNumber: 1,
-      },
+      projection: proposalProjection,
       sort: { id: -1 },
     },
   );
@@ -123,19 +113,7 @@ app.get("/props/:propId", async (c) => {
       id: propId,
     },
     {
-      projection: {
-        _id: 0,
-        id: 1,
-        proposer: 1,
-        description: 1,
-        calldatas: 1,
-        targets: 1,
-        values: 1,
-        startBlock: 1,
-        endBlock: 1,
-        txHash: 1,
-        blockNumber: 1,
-      },
+      projection: proposalProjection,
     },
   );
 
@@ -145,29 +123,28 @@ app.get("/props/:propId", async (c) => {
 // Route for retrieving all votes for a specific prop
 app.get("/props/:propId/votes", async (c) => {
   const propId = c.req.param("propId");
-  const summary = c.req.query("summary") === "true";
-  const type = c.req.query("type") || "all"; // "all", "signal", or "sponsor"
-  const skip = c.req.query("skip");
 
-  if (summary) {
-    return c.text(
-      `Summary of all ${type} votes for Proposal #${propId}, skip: ${skip}`,
-    );
-  }
-  return c.text(
-    `List of all ${type} votes for Proposal #${propId}, skip: ${skip}`,
-  );
-});
+  const db = c.get("db" as never) as Db;
+  const votes = await db
+    .collection("FeedbackSent")
+    .find(
+      {
+        proposalId: Number(propId),
+      },
+      {
+        projection: {
+          _id: 0,
+          proposalId: 1,
+          blockNumber: 1,
+          reason: 1,
+          support: 1,
+          msgSender: 1,
+        },
+      },
+    )
+    .toArray();
 
-// Route for retrieving a specific vote by ID for a specific prop
-app.get("/props/:propId/votes/:voteId", async (c) => {
-  const propId = c.req.param("propId");
-  const voteId = c.req.param("voteId");
-  const summary = c.req.query("summary") === "true";
-  if (summary) {
-    return c.text(`Summary of vote #${voteId} on Proposal #${propId}`);
-  }
-  return c.text(`Details of vote #${voteId} on Proposal #${propId}`);
+  return c.json(votes);
 });
 
 // Route for retrieving all propdates (comments) with optional filtering
