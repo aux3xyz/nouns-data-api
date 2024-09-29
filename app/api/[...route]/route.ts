@@ -21,6 +21,24 @@ let proposalProjection = {
   endBlock: 1,
   txHash: 1,
   blockNumber: 1,
+  msgSender: 1,
+};
+
+let candidateProjection = {
+  _id: 0,
+  id: 1,
+  proposer: 1,
+  description: 1,
+  calldatas: 1,
+  targets: 1,
+  values: 1,
+  startBlock: 1,
+  endBlock: 1,
+  txHash: 1,
+  blockNumber: 1,
+  slug: 1,
+  proposalIdToUpdate: 1,
+  encodedProposalHash: 1,
 };
 
 // Initialize database connection
@@ -140,6 +158,7 @@ app.get("/props/:propId/votes", async (c) => {
           support: 1,
           msgSender: 1,
         },
+        sort: { blockNumber: -1 },
       },
     )
     .toArray();
@@ -191,7 +210,7 @@ app.get("/propdates/:propId", async (c) => {
     .collection("PostUpdate")
     .find(
       {
-        propId: Number(proposalId),
+        propId: proposalId,
       },
       {
         projection: {
@@ -213,12 +232,29 @@ app.get("/propdates/:propId", async (c) => {
 
 // Route for retrieving all candidates
 app.get("/candidates", async (c) => {
-  const summary = c.req.query("summary") === "true";
-  const skip = c.req.query("skip");
-  if (summary) {
-    return c.text(`Summary of all candidates, skip: ${skip}`);
-  }
-  return c.text(`List of all candidates, skip: ${skip}`);
+  const db = c.get("db" as never) as Db;
+
+  // Get pagination parameters from query
+  let page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+  let limit = Math.min(parseInt(c.req.query("limit") || "10", 10), 50);
+
+  // Calculate skip value
+  const skip = (page - 1) * limit;
+
+  const props = await db
+    .collection("ProposalCandidateCreated")
+    .find(
+      {},
+      {
+        projection: candidateProjection,
+        sort: { blockNumber: -1 },
+      },
+    )
+    .skip(skip)
+    .limit(limit)
+    .toArray();
+
+  return c.json(props);
 });
 
 // Route for retrieving a single candidate by slug
@@ -226,26 +262,47 @@ app.get("/candidates/:slug", async (c) => {
   const slug = c.req.param("slug");
   const summary = c.req.query("summary") === "true";
   if (summary) {
-    return c.text(`Summary of Candidate with slug #${slug}`);
+    return c.text(`Summary of Candiate with slug ${slug}`);
   }
-  return c.text(`Details of Candidate with slug #${slug}`);
+  const db = c.get("db" as never) as Db;
+  const prop = await db.collection("ProposalCandidateCreated").findOne(
+    {
+      slug,
+    },
+    {
+      projection: candidateProjection,
+    },
+  );
+
+  return c.json(prop);
 });
 
 // Route for retrieving all votes for a specific candidate
 app.get("/candidates/:slug/votes", async (c) => {
   const slug = c.req.param("slug");
-  const summary = c.req.query("summary") === "true";
-  const type = c.req.query("type") || "all"; // "all", "signal", or "sponsor"
-  const skip = c.req.query("skip");
 
-  if (summary) {
-    return c.text(
-      `Summary of all ${type} votes for Candidate #${slug}, skip: ${skip}`,
-    );
-  }
-  return c.text(
-    `List of all ${type} votes for Candidate #${slug}, skip: ${skip}`,
-  );
+  const db = c.get("db" as never) as Db;
+  const votes = await db
+    .collection("CandidateFeedbackSent")
+    .find(
+      {
+        slug,
+      },
+      {
+        projection: {
+          _id: 0,
+          proposalId: 1,
+          blockNumber: 1,
+          reason: 1,
+          support: 1,
+          msgSender: 1,
+        },
+        sort: { blockNumber: -1 },
+      },
+    )
+    .toArray();
+
+  return c.json(votes);
 });
 
 export const GET = handle(app);
