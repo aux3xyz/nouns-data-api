@@ -111,7 +111,7 @@ app.get("props/latest", async (c) => {
     {},
     {
       projection: proposalProjection,
-      sort: { id: -1 },
+      sort: { blockNumber: -1 },
     },
   );
 
@@ -128,7 +128,7 @@ app.get("/props/:propId", async (c) => {
   const db = c.get("db" as never) as Db;
   const prop = await db.collection("ProposalCreated").findOne(
     {
-      id: propId,
+      id: Number(propId),
     },
     {
       projection: proposalProjection,
@@ -210,7 +210,7 @@ app.get("/propdates/:propId", async (c) => {
     .collection("PostUpdate")
     .find(
       {
-        propId: proposalId,
+        propId: Number(proposalId),
       },
       {
         projection: {
