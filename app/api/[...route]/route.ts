@@ -338,7 +338,7 @@ app.get("/candidates/:slug/feedback", async (c) => {
 });
 
 // Route for retrieving all sponsors for a specific candidate
-app.get("/candidates/:slug/feedback", async (c) => {
+app.get("/candidates/:slug/signatures", async (c) => {
   const slug = c.req.param("slug");
 
   const db = c.get("db" as never) as Db;
