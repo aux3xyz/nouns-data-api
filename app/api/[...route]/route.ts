@@ -138,12 +138,12 @@ app.get("/props/:propId", async (c) => {
   return c.json(prop);
 });
 
-// Route for retrieving all votes for a specific prop
-app.get("/props/:propId/votes", async (c) => {
+// Route for retrieving all feedback for a specific prop
+app.get("/props/:propId/feedback", async (c) => {
   const propId = c.req.param("propId");
 
   const db = c.get("db" as never) as Db;
-  const votes = await db
+  const feedback = await db
     .collection("FeedbackSent")
     .find(
       {
@@ -157,13 +157,44 @@ app.get("/props/:propId/votes", async (c) => {
           reason: 1,
           support: 1,
           msgSender: 1,
+          txHash: 1,
         },
         sort: { blockNumber: -1 },
       },
     )
     .toArray();
 
-  return c.json(votes);
+  return c.json(feedback);
+});
+
+// Route for retrieving all votes for a specific prop
+app.get("/props/:propId/votes", async (c) => {
+  const propId = c.req.param("propId");
+
+  const db = c.get("db" as never) as Db;
+  const feedback = await db
+    .collection("VoteCast")
+    .find(
+      {
+        proposalId: Number(propId),
+      },
+      {
+        projection: {
+          _id: 0,
+          proposalId: 1,
+          blockNumber: 1,
+          reason: 1,
+          support: 1,
+          voter: 1,
+          votes: 1,
+          txHash: 1,
+        },
+        sort: { blockNumber: -1 },
+      },
+    )
+    .toArray();
+
+  return c.json(feedback);
 });
 
 // Route for retrieving all propdates (comments) with optional filtering
@@ -277,12 +308,12 @@ app.get("/candidates/:slug", async (c) => {
   return c.json(prop);
 });
 
-// Route for retrieving all votes for a specific candidate
-app.get("/candidates/:slug/votes", async (c) => {
+// Route for retrieving all feedback for a specific candidate
+app.get("/candidates/:slug/feedback", async (c) => {
   const slug = c.req.param("slug");
 
   const db = c.get("db" as never) as Db;
-  const votes = await db
+  const feedback = await db
     .collection("CandidateFeedbackSent")
     .find(
       {
@@ -291,6 +322,7 @@ app.get("/candidates/:slug/votes", async (c) => {
       {
         projection: {
           _id: 0,
+          txHash: 1,
           proposalId: 1,
           blockNumber: 1,
           reason: 1,
@@ -302,7 +334,36 @@ app.get("/candidates/:slug/votes", async (c) => {
     )
     .toArray();
 
-  return c.json(votes);
+  return c.json(feedback);
+});
+
+// Route for retrieving all sponsors for a specific candidate
+app.get("/candidates/:slug/feedback", async (c) => {
+  const slug = c.req.param("slug");
+
+  const db = c.get("db" as never) as Db;
+  const feedback = await db
+    .collection("SignatureAdded")
+    .find(
+      {
+        slug,
+      },
+      {
+        projection: {
+          _id: 0,
+          txHash: 1,
+          blockNumber: 1,
+          reason: 1,
+          slug: 1,
+          signer: 1,
+          proposer: 1,
+        },
+        sort: { blockNumber: -1 },
+      },
+    )
+    .toArray();
+
+  return c.json(feedback);
 });
 
 export const GET = handle(app);
